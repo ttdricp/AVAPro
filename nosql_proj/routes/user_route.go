@@ -7,8 +7,11 @@ import (
 )
 
 func UserRoutes(incomingRoutes *gin.Engine) {
+
+	incomingRoutes.GET("/task_exec/:id", controllers.TaskExec())
 	incomingRoutes.POST("/users/signup", controllers.SignUp())
 	incomingRoutes.POST("/users/login", controllers.Login())
+	incomingRoutes.POST("/file-upload", controllers.FileUpload())
 	incomingRoutes.GET("/api-1", func(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/task")
 

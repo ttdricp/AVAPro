@@ -77,25 +77,23 @@ var validate = validator.New()
 //	}
 //}
 
-//func GetAUser() http.HandlerFunc {
-//	return func(rw http.ResponseWriter, r *http.Request) {
-//		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-//		var user models.User
-//		defer cancel()
-//		err := userCollection.FindOne(ctx, bson.M{"_id": user.Role})
-//		if err != nil {
-//			rw.WriteHeader(http.StatusInternalServerError)
-//			response := responses.UserResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}}
-//			json.NewEncoder(rw).Encode(response)
-//			return
-//		}
-//
-//		rw.WriteHeader(http.StatusOK)
-//		response := responses.UserResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": user}}
-//		json.NewEncoder(rw).Encode(response)
-//	}
-//
-//}
+func GetAUser(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	var user models.UserZero
+	defer cancel()
+	cookie := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJFbWFpbCI6ImFiYXlAbWFpbC5ydSIsIkZpcnN0X25hbWUiOiJBYmF5IiwiTGFzdF9uYW1lIjoiTXVraHRhcnVseSIsIlVpZCI6IjYzZjZlMTcxNjNkN2MxZTIwZmE4NDNjNSIsImV4cCI6MTY3NzMyMDQ3NX0.z_rep7LeF7gmf1301qkBJ35qmpgYiJNJSVURZtZz84k"
+	fmt.Println(cookie)
+	err := userCollection.FindOne(ctx, bson.M{"token": cookie}).Decode(&user)
+	if err != nil {
+		//log.Panic(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "error occured while checking for the admin restriction"})
+		return
+	}
+	fmt.Println(&user.Role)
+
+	c.JSON(http.StatusOK, user.User_id)
+	return
+}
 
 //func EditAUser() http.HandlerFunc {
 //	return func(rw http.ResponseWriter, r *http.Request) {
@@ -349,15 +347,20 @@ func Login() gin.HandlerFunc {
 
 		helper.UpdateAllTokens(token, refreshToken, foundUser.User_id)
 
-		c.SetCookie("token", token, 3600, "/", "localhost", false, true)
-		c.SetCookie("refreshToken", refreshToken, 3600, "/", "localhost", false, true)
-		c.Request.Header.Add("token", token)
+		c.SetCookie("token", token, 3600, "/task", "localhost", false, true)
+		c.SetCookie("refreshToken", refreshToken, 3600, "/task", "localhost", false, true)
+		c.Request.Header.Set("token", token)
+		fmt.Println(c.GetHeader("token"))
 		cookie, _ := c.Request.Cookie("token")
 		refreshcookie, _ := c.Request.Cookie("refreshToken")
 		fmt.Println(cookie)
 		fmt.Println(refreshcookie)
-		c.JSON(http.StatusOK, foundUser)
-
+		return
+		//c.Writer.Header().Set("token", token)
+		//fmt.Println(c.GetHeader("token"))
+		//c.JSON(http.StatusOK, foundUser)
+		//c.Next()
+		//c.Writer.Header().Set("token", token)
 	}
 }
 func GetDataA(c *gin.Context) time.Time {
@@ -382,6 +385,9 @@ func sPtrt(s time.Time) *time.Time { return &s }
 
 func AddNewTask() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		//cookie := c.GetHeader("token")
+		//fmt.Println(cookie)
+		GetAUser(c)
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		var task models.Task
 		Time := GetDataA(c)
@@ -401,43 +407,8 @@ func AddNewTask() gin.HandlerFunc {
 		task.Till_date = sPtrt(Time)
 		fmt.Println(task.Till_date)
 
-		//task.Category = c.PostForm("category")
-		//task.Points, _ = strconv.Atoi(c.PostForm("Points"))
-		//task.Description = c.PostForm("Description")
-		//
-		//fmt.Println(time)
-		//time := c.PostForm("Till date")
-		//
-		//fmt.Println(time)
-		//c.Set.Set(`form:"Till date"`, time)
-		//time = c.PostForm("Till date")
-
 		fmt.Println(task.Task_id)
 
-		//if err := c.Bind(&task); err != nil {
-		//	c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		//	return
-		//}
-		//
-		//validationErr := validate.Struct(task)
-		//if validationErr != nil {
-		//	c.JSON(http.StatusBadRequest, gin.H{"error": validationErr.Error()})
-		//	return
-		//}
-		//count, err := taskCollection.CountDocuments(ctx, bson.M{"name": task.Name})
-		//defer cancel()
-		//if err != nil {
-		//	log.Panic(err)
-		//	c.JSON(http.StatusInternalServerError, gin.H{"error": "error occured while checking for the name"})
-		//	return
-		//}
-		//
-		//if count > 0 {
-		//	c.JSON(http.StatusInternalServerError, gin.H{"error": "this email or phone number already exists"})
-		//	return
-		//}
-		//taskTillDatestr := *task.Till_date
-		//task.Till_date, _ = time.Parse("2006-01-02 15:04", taskTillDatestr)
 		task.Created_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 		task.Updated_at, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 		task.ID = primitive.NewObjectID()
@@ -491,5 +462,54 @@ func GetTasks() gin.HandlerFunc {
 			"tasks": tasks,
 		})
 
+	}
+}
+
+func TaskExec() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Get the task ID from the URL parameter
+		taskID := c.Param("id")
+
+		// Find the task with the specified ID in the database
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		var task models.Task
+		err := taskCollection.FindOne(ctx, bson.M{"task_id": taskID}).Decode(&task)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+			return
+		}
+
+		// Render the task_exec.html page with the task details
+		c.HTML(http.StatusOK, "task_exec.html", gin.H{
+			"title": task.Name,
+			"task":  task,
+		})
+	}
+}
+
+func FileUpload() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		file, err := c.FormFile("file")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		// Save the file to disk
+		if err := c.SaveUploadedFile(file, "./uploads/"+file.Filename); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		// Return a success message
+		c.JSON(http.StatusOK, gin.H{
+			"message": "File uploaded successfully",
+		})
 	}
 }
