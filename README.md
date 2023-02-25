@@ -12,14 +12,14 @@ An Web Application for programmers who wants develop their coding skills.
 
 Main functions:
 
-SignUp
-Login
-HashPassword
-VerifyPassword
-AddNewTask (also there is restriction (only admin with his unique token is able to add new tasks))
-UserRouter 
-Authentication
-GetTasks (the rendering)
-Token
-FileUpload (Programmers upload their solutions to the problem via FileUpload system (tasks_exec.html / fileupload ))
+- SignUp
+- Login
+- HashPassword
+- VerifyPassword
+- AddNewTask (also there is restriction (only admin with his unique token is able to add new tasks))
+- UserRouter 
+- Authentication
+- GetTasks (the rendering)
+- Token
+- FileUpload (Programmers upload their solutions to the problem via FileUpload system (tasks_exec.html / fileupload ))
 
